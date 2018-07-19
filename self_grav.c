@@ -21,8 +21,9 @@ void solve_tri_diag( double *a, double *b, double *c, double *d, double *x, int 
   return;
 }
 
+void swap_fft_buffer( double *, double **, int, int, int );
 
-void solve_sg_ode( struct poisson *thePoisson, *fft_buffer ){
+void solve_sg_ode( struct poisson *thePoisson, double *fft_buffer ){
   //TODO: Need to include boundary conditions
   //TODO: Need to make this 3D: e.g. include z-direction
   //TODO: ***** fix indexing to account for r2r transform? ******
@@ -44,9 +45,9 @@ void solve_sg_ode( struct poisson *thePoisson, *fft_buffer ){
   int i;
   double dr2_inv = 1/dr/dr;
   for( i=1; i<L+1; i++ ){
-    r_i = dr*(i - 0.5);
-    a[i-1] = dr2_inv - 0.5/del_r/r_i;
-    c[i-1] = dr2_inv + 0.5/del_r/r_i;
+    double r_i = dr*(i - 0.5);
+    a[i-1] = dr2_inv - 0.5/dr/r_i;
+    c[i-1] = dr2_inv + 0.5/dr/r_i;
   }
 
   //Calculate coeffs for U_i and for each n, get array F_n[i] where i is at r_i
@@ -55,7 +56,7 @@ void solve_sg_ode( struct poisson *thePoisson, *fft_buffer ){
   for( n=0; n<N_pp; n++ ){
     for( i=1; i<L+1; i++ ){
       int idx = n +(i-1)*N_pp;
-      r_i = dr*(i - 0.5);
+      double r_i = dr*(i - 0.5);
       b[i-1] = -2*dr2_inv - n*n/r_i/r_i;
       F_n[i-1] = fft_buffer[idx];
     }
@@ -89,7 +90,7 @@ void calc_sg_phi_force( struct domain *theDomain ){
            struct cell * c  = &(theCells[jk][i]);
            struct cell * cL = &(theCells[jk][im]);
            struct cell * cR = &(theCells[jk][ip]);
-           double psiC = c->Psi;
+           //double psiC = c->Psi;
            double psiL = cL->Psi;
            double psiR = cR->Psi;
            double dpL = cL->dphi;
@@ -103,6 +104,7 @@ void calc_sg_phi_force( struct domain *theDomain ){
 }
 
 double get_signed_dp( double, double );
+double get_dA( double *, double *, int );
 
 void calc_sg_trans_force( struct domain *theDomain, struct face *theFaces, int Nf, int dim ){
 
@@ -110,8 +112,8 @@ void calc_sg_trans_force( struct domain *theDomain, struct face *theFaces, int N
   int Nr  = theDomain->Nr;
   int Nz  = theDomain->Nz;
   int *Np = theDomain->Np;
-  double * r_jph = theDomain->r_jph;
-  double * z_kph = theDomain->z_kph;
+  double *r_jph = theDomain->r_jph;
+  double *z_kph = theDomain->z_kph;
 
   int DIR;
   if( dim==1 )
@@ -142,6 +144,7 @@ void calc_sg_trans_force( struct domain *theDomain, struct face *theFaces, int N
   }
 
   //Divide by total weight
+  int i,j,k;
   for( j=0 ; j<Nr ; ++j ){
      for( k=0 ; k<Nz ; ++k ){
         int jk = j+Nr*k;
@@ -198,11 +201,11 @@ void self_grav_src( double *gradPsi, double *prim, double *cons, double *xp, dou
   cons[TAU] += rho*( Fr*vr + Fz*vz + Fp*vp )*dVdt;
 }
 
-freePoisson( struct poisson *thePoisson ){
+void freePoisson( struct poisson *thePoisson ){
 
   int L = thePoisson->L;
   int M = thePoisson->M;
-  int N_pp = thePoisson->N_pp;
+  //int N_pp = thePoisson->N_pp;
 
   int jk;
   for( jk=0; jk<L*M; jk++ )
@@ -210,6 +213,13 @@ freePoisson( struct poisson *thePoisson ){
 
   free( thePoisson->thePoints );
 }
+
+void initializePoisson( struct domain * );
+void build_fft_buffer( struct poisson *, double * );
+void density_fft( struct poisson *, double * );
+void potential_fft( struct poisson *, double * );
+void unpack_fft_buffer( struct poisson *, double * );
+void finalizePoisson( struct domain * );
 
 void self_grav( struct domain *theDomain ){
 
@@ -225,7 +235,7 @@ void self_grav( struct domain *theDomain ){
   // - build buffer, fft, and then build back?
   double *fft_buffer = (double *) malloc( L*M*N_pp*sizeof(int) );
   build_fft_buffer( thePoisson, fft_buffer );
-  density_fft( thePoisson, fft_buffer)
+  density_fft( thePoisson, fft_buffer);
 
   //Solve Tri-Diag systems
   // - calculate coeffs, then solve
@@ -239,6 +249,8 @@ void self_grav( struct domain *theDomain ){
   finalizePoisson( theDomain );
 
   //Calculate gravitational force
+  int Nf;
+  struct face *theFaces;
   calc_sg_phi_force( theDomain );
   Nf = theDomain->fIndex_r[theDomain->N_ftracks_r];
   theFaces = theDomain->theFaces_1;

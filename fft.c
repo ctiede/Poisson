@@ -5,7 +5,7 @@ void build_fft_buffer( struct poisson *thePoisson, double *fft_buffer ){
   int L = thePoisson->L;
   int M = thePoisson->M;
   int N_pp = thePoisson->N_pp;
-  struct ppoint **thePoints = thePoints->thePoints;
+  struct ppoint **thePoints = thePoisson->thePoints;
 
   int i,j,k;
   for( j=0; j<L; j++ ){
@@ -14,7 +14,7 @@ void build_fft_buffer( struct poisson *thePoisson, double *fft_buffer ){
       for( i=0; i<N_pp; i++ ){
         struct ppoint *pt = &(thePoints[jk][i]);
         int idx = jk*N_pp + i;
-        fft_buffer[idx] = 4*pi*pt->density;        //TODO: Double check indexing
+        fft_buffer[idx] = 4*M_PI*pt->density;        //TODO: Double check indexing
       }
     }
   }
@@ -36,7 +36,7 @@ void unpack_fft_buffer( struct poisson *thePoisson, double *fft_buffer ){
   int L = thePoisson->L;
   int M = thePoisson->M;
   int N_pp = thePoisson->N_pp;
-  struct ppoint **thePoints = thePoints->thePoints;
+  struct ppoint **thePoints = thePoisson->thePoints;
 
   int i,j,k;
   for( j=0; j<L; j++ ){
@@ -61,7 +61,7 @@ void swap_fft_buffer( double *fft_buffer, double **Phi, int L, int M, int N_pp )
   int i,n;
   for( i=0; i<L; i++ ){
     for( n=0; n<N_pp; n++){
-      idx = i*N_pp + n;
+      int idx = i*N_pp + n;
       fft_buffer[idx] = Phi[n][i];
     }
   }
@@ -79,7 +79,7 @@ void density_fft( struct poisson *thePoisson, double *fft_buffer ){
   //struct ppoint *thePoints = thePoisson->thePoints;
   //build_fft_buffer( fft_buffer, thePoints, L, M, N_pp );
 
-  dim = 1;
+    int dim = 1;
 	const int n[1] = { N_pp };
 	const fftw_r2r_kind kind[1] = { FFTW_R2HC }; //Real to Half-Complex
 	fftw_plan my_plan = fftw_plan_many_r2r( dim, n, L*M, fft_buffer, n, 1, N_pp,
@@ -98,7 +98,7 @@ void potential_fft( struct poisson *thePoisson, double *fft_buffer ){
   int M = thePoisson->M;
   int N_pp = thePoisson->N_pp;
 
-  dim = 1;
+  int dim = 1;
   const int n[1] = { N_pp };
   const fftw_r2r_kind kind[1] = { FFTW_HC2R };  //Half-Complex to Real
   fftw_plan my_plan = fftw_plan_many_r2r( dim, n, L*M, fft_buffer, n, 1, N_pp,
@@ -111,7 +111,7 @@ void potential_fft( struct poisson *thePoisson, double *fft_buffer ){
 
   //Need to divide by number of elements for inverse fft b/c fftw doesn't
   int idx;
-  for( idx=0; i<L*M*N_pp; i++ )
-    fft_buffer /= N_pp;
+  for( idx=0; idx<L*M*N_pp; idx++ )
+    fft_buffer[idx] /= N_pp;
 
 }

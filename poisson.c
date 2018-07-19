@@ -5,6 +5,7 @@
 const int N_pp = 16;
 const int n = 12;
 
+/*
 struct ppoint{  //Point in Poisson Grid
 
   double x[3];
@@ -22,15 +23,18 @@ struct poisson{
   struct ppoint **thePoints; //array of points on poisson grid
 
 };
+*/
 
 void setupPoission( struct domain *theDomain ){
 
   struct poisson *thePoisson = theDomain->thePoisson;
-  thePoisson->L = theDomain->Nr; //64;
-  thePoisson->M = 1;  //theDomain->Nz;
+  int L = theDomain->Nr; //64
+  int M = 1;
+  thePoisson->L = L; //64;
+  thePoisson->M = M;  //theDomain->Nz;
   thePoisson->N_pp = N_pp; //input this from .par file?
 
-  thPoisson->thePoints = (struct ppoint **) malloc( L*M*sizeof(sturct ppoint *) );
+  thePoisson->thePoints = (struct ppoint **) malloc( L*M*sizeof(struct ppoint *) );
   int jk;
   for( jk=0; jk<L*M; jk++ ){
     //thePoisson->density[ jk ] = (double *) malloc( N_pp*sizeof(double) );
